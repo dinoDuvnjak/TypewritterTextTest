@@ -4,9 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+
 #include "DialogueDataAsset.generated.h"
 
-//create struct exposed to blueprints
 USTRUCT(BlueprintType)
 struct FDialogueData
 {
@@ -21,10 +21,14 @@ struct FDialogueData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FText DialogueText = FText::GetEmpty();
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float TypingInterval = 0.1f;
+
 	FDialogueData()
 	: Name(FText::GetEmpty())
 	, Image(nullptr)
 	, DialogueText(FText::GetEmpty())
+	, TypingInterval(0.1f)
 	{}
 };
 

@@ -9,71 +9,81 @@
 #include "Components/TextBlock.h"
 #include "Engine/AssetManager.h"
 #include "TypewritterTextTest/Public/Data/DialogueDataAsset.h"
+#include "Widgets/KeywordBlockDecorator.h"
 
-void UDialogueWidget::StartDialogue(FDialogueData DialogueData, float InTypingInterval)
+void UDialogueWidget::StartDialogue(FDialogueData DialogueData)
  {
 	if (CharacterNameText)
 	{
 		CharacterNameText->SetText(DialogueData.Name);
 	}
-	if (CharacterImage && DialogueData.Image.IsValid())
+	if (CharacterImage)
 	{
-		// If already loaded, use it immediately
-		UTexture2D* LoadedTexture = DialogueData.Image.Get();
-		if (LoadedTexture)
+		LoadDialogueImage(DialogueData, [this, DialogueData](UTexture2D* Texture)
 		{
-			if (CharacterImage)
+			if (Texture)
 			{
-				FSlateBrush Brush;
-				Brush.SetResourceObject(LoadedTexture);
-				Brush.ImageSize = FVector2D(LoadedTexture->GetSizeX(), LoadedTexture->GetSizeY());
-				CharacterImage->SetBrush(Brush);
-			}
-			return;
-		}
+				UE_LOG(LogTemp, Log, TEXT("dino::Image Loaded: %s"), *Texture->GetName());
+				CharacterImage->SetBrushFromTexture(Texture);
+				CurrentDialogue = DialogueData;
+				CurrentCharIndex = 0;
+				TypingInterval = DialogueData.TypingInterval;
+				bIsAnimating = true;
 
-		FStreamableManager& StreamableManager = UAssetManager::GetStreamableManager();
-		StreamableManager.RequestAsyncLoad(DialogueData.Image.ToSoftObjectPath(), [this, DialogueData]()
-		{
-			UTexture2D* LoadedTexture = Cast<UTexture2D>(DialogueData.Image.ToSoftObjectPath().ResolveObject());
-			if (!LoadedTexture)
-			{
-				UE_LOG(LogTemp, Error, TEXT("Loaded object is not a texture!"));
-				return;
+				if (DialogueRichText)
+				{
+					DialogueRichText->SetText(FText::GetEmpty());
+				}
+				if (GetWorld())
+				{
+					GetWorld()->GetTimerManager().SetTimer(TypingTimerHandle, this, &UDialogueWidget::DisplayNextCharacter, TypingInterval, true);
+				}
 			}
-			// Convert Texture2D to Brush
-			FSlateBrush Brush;
-			Brush.SetResourceObject(LoadedTexture);
-			Brush.ImageSize = FVector2D(LoadedTexture->GetSizeX(), LoadedTexture->GetSizeY());
-
-			// Set to UImage
-			if (CharacterImage)
+			else
 			{
-				CharacterImage->SetBrush(Brush);
+				UE_LOG(LogTemp, Warning, TEXT("dino::Failed to load image."));
 			}
 		});
 	}
 
-	CurrentDialogue = DialogueData;
-	CurrentCharIndex = 0;
-	TypingInterval = InTypingInterval;
-	bIsAnimating = true;
+}
 
-	if (DialogueRichText)
+void UDialogueWidget::LoadDialogueImage(const FDialogueData& DialogueData, TFunction<void(UTexture2D*)> OnLoaded)
+{
+	if (DialogueData.Image.ToSoftObjectPath().IsValid())
 	{
-		DialogueRichText->SetText(FText::GetEmpty());
+		FStreamableManager& Streamable = UAssetManager::GetStreamableManager();
+		Streamable.RequestAsyncLoad(
+			DialogueData.Image.ToSoftObjectPath(),
+			[OnLoaded, DialogueData]() 
+			{
+				UTexture2D* LoadedTexture = DialogueData.Image.Get();
+				OnLoaded(LoadedTexture);
+			},
+			FStreamableManager::DefaultAsyncLoadPriority,
+			false
+		);
 	}
+	else
+	{
+		OnLoaded(nullptr);
+	}
+}
 
-	// Start a timer using the Timer Manager (this is real-time based, not frame-dependent).
-	if (GetWorld())
-	{
-		GetWorld()->GetTimerManager().SetTimer(TypingTimerHandle, this, &UDialogueWidget::DisplayNextCharacter, TypingInterval, true);
-	}
+void UDialogueWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
 }
 
 bool UDialogueWidget::Initialize()
 {
 	return Super::Initialize();
+}
+
+void UDialogueWidget::OnDialogueFinish()
+{
+	GetWorld()->GetTimerManager().ClearTimer(TypingTimerHandle);
+	OnDialogueFinished.Broadcast(CurrentDialogue);
 }
 
 FReply UDialogueWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
@@ -84,7 +94,7 @@ FReply UDialogueWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyE
 		{
 			if (GetWorld())
 			{
-				GetWorld()->GetTimerManager().ClearTimer(TypingTimerHandle);
+				OnDialogueFinish();
 			}
 			UpdateDialogueDisplay(CurrentDialogue.DialogueText.ToString());
 			bIsAnimating = false;
@@ -108,21 +118,17 @@ void UDialogueWidget::DisplayNextCharacter()
 		bIsAnimating = false;
 		if (GetWorld())
 		{
-			GetWorld()->GetTimerManager().ClearTimer(TypingTimerHandle);
+			OnDialogueFinish();
 		}
 	}
 }
 
 void UDialogueWidget::UpdateDialogueDisplay(const FString& NewDisplayString)
 {
-	// If using URichTextBlock, you might need to preserve markup for special words.
-	// For simplicity, we assume NewDisplayString contains the proper markup already.
 	if (DialogueRichText)
 	{
 		DialogueRichText->SetText(FText::FromString(NewDisplayString));
 	}
-
-	// Optionally, if the dialogue is inside a scroll box, auto-scroll to the bottom.
 	if (DialogueScrollBox)
 	{
 		DialogueScrollBox->ScrollToEnd();
