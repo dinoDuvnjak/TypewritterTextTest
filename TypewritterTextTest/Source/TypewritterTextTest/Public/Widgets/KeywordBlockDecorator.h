@@ -25,5 +25,4 @@ public:
 protected:
 	bool Supports(const FTextRunParseResults& RunParseResult, const FString& Text) const override;
 	TSharedPtr<SWidget> CreateDecoratorWidget(const FTextRunInfo& RunInfo, const FTextBlockStyle& DefaultTextStyle) const override;
-
 };

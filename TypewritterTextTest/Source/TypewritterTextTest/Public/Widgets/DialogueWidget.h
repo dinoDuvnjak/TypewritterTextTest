@@ -41,12 +41,10 @@ protected:
 	void UpdateDialogueDisplay(const FString& NewDisplayString);
 	void LoadDialogueImage(const FDialogueData& DialogueData, TFunction<void(UTexture2D*)> OnLoaded);
 protected:	
-	// UUserWidget interface
 	virtual void NativeConstruct() override;
 	virtual bool Initialize() override;
-	void OnDialogueFinish();
+	void HandleDialogueFinish();
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
-	// End of UUserWidget interface
 private:
 	bool bIsAnimating = false;
 	FTimerHandle TypingTimerHandle = FTimerHandle();

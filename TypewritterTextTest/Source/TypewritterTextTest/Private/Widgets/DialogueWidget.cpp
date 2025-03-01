@@ -1,6 +1,5 @@
 ﻿// Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "TypewritterTextTest/Public/Widgets/DialogueWidget.h"
 
 #include "Components/Image.h"
@@ -9,7 +8,6 @@
 #include "Components/TextBlock.h"
 #include "Engine/AssetManager.h"
 #include "TypewritterTextTest/Public/Data/DialogueDataAsset.h"
-#include "Widgets/KeywordBlockDecorator.h"
 
 void UDialogueWidget::StartDialogue(FDialogueData DialogueData)
  {
@@ -23,13 +21,11 @@ void UDialogueWidget::StartDialogue(FDialogueData DialogueData)
 		{
 			if (Texture)
 			{
-				UE_LOG(LogTemp, Log, TEXT("dino::Image Loaded: %s"), *Texture->GetName());
 				CharacterImage->SetBrushFromTexture(Texture);
 				CurrentDialogue = DialogueData;
 				CurrentCharIndex = 0;
 				TypingInterval = DialogueData.TypingInterval;
 				bIsAnimating = true;
-
 				if (DialogueRichText)
 				{
 					DialogueRichText->SetText(FText::GetEmpty());
@@ -80,7 +76,7 @@ bool UDialogueWidget::Initialize()
 	return Super::Initialize();
 }
 
-void UDialogueWidget::OnDialogueFinish()
+void UDialogueWidget::HandleDialogueFinish()
 {
 	GetWorld()->GetTimerManager().ClearTimer(TypingTimerHandle);
 	OnDialogueFinished.Broadcast(CurrentDialogue);
@@ -94,7 +90,7 @@ FReply UDialogueWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyE
 		{
 			if (GetWorld())
 			{
-				OnDialogueFinish();
+				HandleDialogueFinish();
 			}
 			UpdateDialogueDisplay(CurrentDialogue.DialogueText.ToString());
 			bIsAnimating = false;
@@ -118,7 +114,7 @@ void UDialogueWidget::DisplayNextCharacter()
 		bIsAnimating = false;
 		if (GetWorld())
 		{
-			OnDialogueFinish();
+			HandleDialogueFinish();
 		}
 	}
 }
